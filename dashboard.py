@@ -2,10 +2,13 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from pathlib import Path
+from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
 
 
 # ============================================================
@@ -24,7 +27,17 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     """Load the social media addiction dataset."""
-    return pd.read_csv("Students Social Media Addiction.csv")
+    dataset_paths = [
+        Path("dataset") / "Students Social Media Addiction.csv",
+        Path("Students Social Media Addiction.csv"),
+    ]
+
+    for dataset_path in dataset_paths:
+        if dataset_path.exists():
+            return pd.read_csv(dataset_path)
+
+    st.error("Dataset file not found. Please place it in the dataset folder.")
+    st.stop()
 
 
 df = load_data()
@@ -72,6 +85,51 @@ selected_addiction_score = st.sidebar.slider(
     max_value=int(df["Addicted_Score"].max()),
     value=(int(df["Addicted_Score"].min()), int(df["Addicted_Score"].max())),
 )
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Addiction Prediction")
+
+prediction_age = st.sidebar.number_input(
+    "Age",
+    min_value=int(df["Age"].min()),
+    max_value=int(df["Age"].max()),
+    value=int(df["Age"].median()),
+    step=1,
+)
+
+prediction_usage = st.sidebar.number_input(
+    "Daily usage hours",
+    min_value=float(df["Avg_Daily_Usage_Hours"].min()),
+    max_value=float(df["Avg_Daily_Usage_Hours"].max()),
+    value=float(round(df["Avg_Daily_Usage_Hours"].median(), 1)),
+    step=0.1,
+    format="%.1f",
+)
+
+prediction_sleep = st.sidebar.number_input(
+    "Sleep hours",
+    min_value=float(df["Sleep_Hours_Per_Night"].min()),
+    max_value=float(df["Sleep_Hours_Per_Night"].max()),
+    value=float(round(df["Sleep_Hours_Per_Night"].median(), 1)),
+    step=0.1,
+    format="%.1f",
+)
+
+prediction_mental_health = st.sidebar.number_input(
+    "Mental health score",
+    min_value=int(df["Mental_Health_Score"].min()),
+    max_value=int(df["Mental_Health_Score"].max()),
+    value=int(df["Mental_Health_Score"].median()),
+    step=1,
+)
+
+prediction_platform = st.sidebar.selectbox(
+    "Most used platform",
+    options=platform_options,
+    index=0,
+)
+
+predict_clicked = st.sidebar.button("Predict", use_container_width=True)
 
 
 # ============================================================
@@ -191,6 +249,36 @@ st.markdown(
         color: {muted_text};
         font-size: 0.9rem;
     }}
+
+    .prediction-result {{
+        background: {card_bg};
+        border: 1px solid #38bdf8;
+        border-radius: 14px;
+        padding: 22px 24px;
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 14px 32px rgba(14, 165, 233, 0.14);
+    }}
+
+    .prediction-label {{
+        color: {muted_text};
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }}
+
+    .prediction-value {{
+        color: {text_color};
+        font-size: 2.15rem;
+        line-height: 1.1;
+        font-weight: 850;
+    }}
+
+    .prediction-note {{
+        color: {muted_text};
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -265,21 +353,36 @@ def style_chart(fig, height=430):
     return fig
 
 
+def addiction_level(score):
+    """Convert an addicted score into a simple readable level."""
+    if score <= 3:
+        return "Low"
+    if score <= 6:
+        return "Moderate"
+    return "High"
+
+
 @st.cache_data
 def train_model(data):
-    """Train a Random Forest model and return accuracy and feature importance."""
-    model_data = data.copy()
+    """Train a Random Forest model for sidebar prediction inputs."""
+    feature_columns = [
+        "Age",
+        "Avg_Daily_Usage_Hours",
+        "Sleep_Hours_Per_Night",
+        "Mental_Health_Score",
+        "Most_Used_Platform",
+    ]
+    numeric_features = [
+        "Age",
+        "Avg_Daily_Usage_Hours",
+        "Sleep_Hours_Per_Night",
+        "Mental_Health_Score",
+    ]
+    categorical_features = ["Most_Used_Platform"]
 
-    # Student_ID is an identifier, so it is removed before model training.
-    if "Student_ID" in model_data.columns:
-        model_data = model_data.drop(columns=["Student_ID"])
+    model_data = data[feature_columns + ["Addicted_Score"]].dropna().copy()
 
-    # Convert text columns into numeric values.
-    label_encoder = LabelEncoder()
-    for column in model_data.select_dtypes(include=["object", "string"]).columns:
-        model_data[column] = label_encoder.fit_transform(model_data[column])
-
-    X = model_data.drop("Addicted_Score", axis=1)
+    X = model_data[feature_columns]
     y = model_data["Addicted_Score"]
 
     # Stratified splitting is useful, but it needs at least two samples
@@ -294,21 +397,60 @@ def train_model(data):
         stratify=stratify_target,
     )
 
-    model = RandomForestClassifier(
-        n_estimators=200,
-        random_state=42,
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("numeric", "passthrough", numeric_features),
+            (
+                "platform",
+                OneHotEncoder(handle_unknown="ignore"),
+                categorical_features,
+            ),
+        ]
+    )
+
+    model = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            (
+                "classifier",
+                RandomForestClassifier(
+                    n_estimators=250,
+                    random_state=42,
+                    class_weight="balanced",
+                ),
+            ),
+        ]
     )
     model.fit(X_train, y_train)
 
     predictions = model.predict(X_test)
     accuracy = accuracy_score(y_test, predictions)
 
-    importance_df = pd.DataFrame(
+    feature_importances = model.named_steps["classifier"].feature_importances_
+    encoded_feature_names = model.named_steps["preprocessor"].get_feature_names_out()
+    readable_feature_names = [
+        feature_name.split("__", 1)[-1].replace("Most_Used_Platform_", "Platform: ")
+        for feature_name in encoded_feature_names
+    ]
+
+    encoded_importance_df = pd.DataFrame(
         {
-            "Feature": X.columns,
-            "Importance": model.feature_importances_,
+            "Feature": readable_feature_names,
+            "Importance": feature_importances,
         }
     ).sort_values("Importance", ascending=False)
+
+    importance_df = encoded_importance_df.copy()
+    importance_df["Feature"] = importance_df["Feature"].apply(
+        lambda feature: "Most Used Platform"
+        if feature.startswith("Platform: ")
+        else feature
+    )
+    importance_df = (
+        importance_df.groupby("Feature", as_index=False)["Importance"]
+        .sum()
+        .sort_values("Importance", ascending=False)
+    )
 
     prediction_summary = pd.DataFrame(
         {
@@ -317,7 +459,39 @@ def train_model(data):
         }
     )
 
-    return accuracy, importance_df, prediction_summary
+    return model, accuracy, importance_df, prediction_summary
+
+
+model, accuracy, importance_df, prediction_summary = train_model(df)
+
+prediction_input = pd.DataFrame(
+    [
+        {
+            "Age": prediction_age,
+            "Avg_Daily_Usage_Hours": prediction_usage,
+            "Sleep_Hours_Per_Night": prediction_sleep,
+            "Mental_Health_Score": prediction_mental_health,
+            "Most_Used_Platform": prediction_platform,
+        }
+    ]
+)
+
+if predict_clicked:
+    predicted_score = int(model.predict(prediction_input)[0])
+    predicted_level = addiction_level(predicted_score)
+
+    st.session_state["prediction_result"] = {
+        "score": predicted_score,
+        "level": predicted_level,
+        "input": prediction_input,
+    }
+
+if "prediction_result" in st.session_state:
+    sidebar_prediction = st.session_state["prediction_result"]
+    st.sidebar.success(
+        f"Predicted score: {sidebar_prediction['score']} "
+        f"({sidebar_prediction['level']} addiction)"
+    )
 
 
 # ============================================================
@@ -679,11 +853,31 @@ with ml_tab:
     with st.expander("Model details", expanded=True):
         st.write(
             "A Random Forest Classifier is trained to predict the `Addicted_Score` "
-            "using the available student behavior and demographic features. "
-            "`Student_ID` is removed because it is only an identifier."
+            "from the sidebar inputs: age, daily usage, sleep hours, mental health "
+            "score, and most used platform."
         )
 
-    accuracy, importance_df, prediction_summary = train_model(df)
+    if "prediction_result" in st.session_state:
+        prediction_result = st.session_state["prediction_result"]
+        st.markdown(
+            f"""
+            <div class="prediction-result">
+                <div class="prediction-label">Prediction Result</div>
+                <div class="prediction-value">
+                    Score {prediction_result["score"]} - {prediction_result["level"]} Addiction
+                </div>
+                <div class="prediction-note">
+                    Generated from the values entered in the sidebar.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.expander("Prediction inputs", expanded=False):
+            st.dataframe(prediction_result["input"], use_container_width=True)
+    else:
+        st.info("Enter values in the sidebar and click Predict to generate an addicted score.")
 
     ml_col1, ml_col2, ml_col3 = st.columns(3)
 
