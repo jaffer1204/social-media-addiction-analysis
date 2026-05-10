@@ -24,7 +24,7 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     """Load the social media addiction dataset."""
-    return pd.read_csv("./dataset/Students Social Media Addiction.csv")
+    return pd.read_csv("Students Social Media Addiction.csv")
 
 
 df = load_data()
