@@ -1,4 +1,4 @@
-# Social Media Addiction Analysis Using Python
+# Social Media Addiction Analytics and Insights
 
 ## Project Overview
 

@@ -19,7 +19,7 @@ from sklearn.preprocessing import OneHotEncoder
 # PAGE SETUP
 # ============================================================
 st.set_page_config(
-    page_title="Social Media Addiction Intelligence",
+    page_title="Social Media Addiction Analytics and Insights",
     page_icon="🧠",
     layout="wide",
 )
@@ -84,7 +84,7 @@ PLATFORM_STYLES = {
 # ============================================================
 # SIDEBAR THEME CONTROL
 # ============================================================
-st.sidebar.title("ðŸ§­ Control Center")
+st.sidebar.title("Dashboard Controls")
 
 theme_mode = st.sidebar.radio(
     "Theme",
@@ -620,11 +620,11 @@ def render_live_header():
             <div class="hero">
                 <div class="hero-grid">
                     <div>
-                        <div class="eyebrow">AI Analytics Platform</div>
-                        <div class="title">Social Media Addiction Intelligence</div>
+                        <div class="eyebrow">Student Data Analysis Dashboard</div>
+                        <div class="title">Social Media Addiction Analytics and Insights</div>
                         <div class="subtitle">
-                            A premium Streamlit analytics workspace for exploring student behavior,
-                            usage intensity, sleep health, platform patterns, and AI-powered addiction risk.
+                            A Streamlit dashboard for studying student social media behavior,
+                            daily usage, sleep patterns, platform preference, and addiction score prediction.
                         </div>
                     </div>
                     <div class="clock-card">
@@ -710,7 +710,7 @@ with st.sidebar.expander("Interactive Filters", expanded=True):
         value=(int(df["Addicted_Score"].min()), int(df["Addicted_Score"].max())),
     )
 
-with st.sidebar.expander("AI Prediction Inputs", expanded=True):
+with st.sidebar.expander("Prediction Inputs", expanded=True):
     prediction_age = st.number_input(
         "Age",
         min_value=int(df["Age"].min()),
@@ -742,7 +742,7 @@ with st.sidebar.expander("AI Prediction Inputs", expanded=True):
         step=1,
     )
     prediction_platform = st.selectbox("Most used platform", platform_options)
-    predict_clicked = st.button("🔮 Predict Addiction Risk", width="stretch")
+    predict_clicked = st.button("Predict Addiction Score", width="stretch")
 
 
 # ============================================================
@@ -844,7 +844,7 @@ def kpi_card(icon, label, value, note):
             const startTime = performance.now();
 
             function formatNumber(number) {{
-                return number.toLocaleString(undefined, {{
+                return number.toLocaleString("en-US", {{
                     minimumFractionDigits: decimals,
                     maximumFractionDigits: decimals
                 }});
@@ -1006,8 +1006,10 @@ def style_chart(fig, height=430):
         hoverlabel=dict(bgcolor=hover_label_bg, font_color="#ffffff", font_size=13),
         legend=dict(bgcolor="rgba(0,0,0,0)"),
     )
-    fig.update_xaxes(gridcolor=grid_color)
-    fig.update_yaxes(gridcolor=grid_color)
+    if any(str(axis_name).startswith("xaxis") for axis_name in fig.layout):
+        fig.update_xaxes(gridcolor=grid_color)
+    if any(str(axis_name).startswith("yaxis") for axis_name in fig.layout):
+        fig.update_yaxes(gridcolor=grid_color)
     return fig
 
 
@@ -1047,7 +1049,7 @@ def build_insights(data):
         .agg(
             Average_Addiction=("Addicted_Score", "mean"),
             Average_Usage=("Avg_Daily_Usage_Hours", "mean"),
-            Users=("Most_Used_Platform", "count"),
+            Students=("Most_Used_Platform", "count"),
         )
         .sort_values("Average_Addiction", ascending=False)
     )
@@ -1074,31 +1076,31 @@ def build_insights(data):
 
     return [
         (
-            "💤 Sleep Risk Signal",
+            "Sleep Pattern",
             f"{sleep_message} Correlation with addiction score: "
             f"<span class='metric-highlight'>{sleep_corr:.2f}</span>.",
         ),
         (
-            "📱 Platform Pattern",
+            "Platform Pattern",
             f"<span class='metric-highlight'>{riskiest_platform['Most_Used_Platform']}</span> "
             f"has the highest average addiction score "
             f"({riskiest_platform['Average_Addiction']:.2f}) and average usage of "
             f"{riskiest_platform['Average_Usage']:.2f} hours.",
         ),
         (
-            "🧠 Mental Health Link",
+            "Mental Health Link",
             f"{mental_message} Correlation with addiction score: "
             f"<span class='metric-highlight'>{mental_corr:.2f}</span>.",
         ),
         (
-            "⏱ Usage Pressure",
+            "Daily Usage Pattern",
             f"Daily usage has a correlation of "
             f"<span class='metric-highlight'>{usage_corr:.2f}</span> with addiction score. "
-            f"High-risk users make up <span class='metric-highlight'>{high_risk_share:.1f}%</span> "
+            f"High-risk students make up <span class='metric-highlight'>{high_risk_share:.1f}%</span> "
             "of this filtered dataset.",
         ),
         (
-            "📈 Age Trend",
+            "Age Trend",
             f"Age <span class='metric-highlight'>{int(peak_age['Age'])}</span> has the highest "
             f"average addiction score in the current filters "
             f"({peak_age['Addicted_Score']:.2f}).",
@@ -1216,7 +1218,7 @@ if predict_clicked:
 if "prediction_result" in st.session_state:
     result = st.session_state["prediction_result"]
     st.sidebar.success(
-        f"Risk: {result['risk_percentage']:.1f}% | "
+        f"Predicted risk: {result['risk_percentage']:.1f}% | "
         f"Score: {result['score']} | {result['risk_label']}"
     )
 
@@ -1232,24 +1234,24 @@ avg_usage = filtered_df["Avg_Daily_Usage_Hours"].mean()
 avg_sleep = filtered_df["Sleep_Hours_Per_Night"].mean()
 most_used_platform = filtered_df["Most_Used_Platform"].mode()[0]
 
-st.markdown('<div class="section-title">Executive KPI Overview</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Analytics Summary</div>', unsafe_allow_html=True)
 kpi_cols = st.columns(5)
 
 with kpi_cols[0]:
-    kpi_card("&#128101;", "Total Users", f"{total_users:,}", "Filtered student records")
+    kpi_card("&#128101;", "Total Students", f"{total_users:,}", "Filtered student records")
 with kpi_cols[1]:
     kpi_card("&#129504;", "Average Addiction Score", f"{avg_addiction:.2f}", "Mean score")
 with kpi_cols[2]:
     kpi_card("&#9201;", "Average Daily Usage", f"{avg_usage:.2f} hrs", "Usage per day")
 with kpi_cols[3]:
-    kpi_card(platform_badge(most_used_platform), "Most Used Platform", most_used_platform, "Dominant platform")
+    kpi_card(platform_badge(most_used_platform), "Most Used Platform", most_used_platform, "Most common platform")
 with kpi_cols[4]:
     kpi_card("&#127769;", "Average Sleep Hours", f"{avg_sleep:.2f} hrs", "Sleep per night")
 
 # ============================================================
 # PLATFORM BADGES
 # ============================================================
-st.markdown('<div class="section-title">Active Platform Mix</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Selected Platforms</div>', unsafe_allow_html=True)
 render_platform_strip(sorted(filtered_df["Most_Used_Platform"].dropna().unique()))
 
 
@@ -1257,7 +1259,7 @@ render_platform_strip(sorted(filtered_df["Most_Used_Platform"].dropna().unique()
 # NAVIGATION
 # ============================================================
 overview_tab, analytics_tab, prediction_tab, insights_tab, dataset_tab = st.tabs(
-    ["🏠 Overview", "📊 Analytics", "🔮 AI Prediction", "💡 Insights", "🗂 Dataset"]
+    ["Overview", "Analysis", "Prediction", "Observations", "Dataset"]
 )
 
 
@@ -1270,8 +1272,8 @@ with overview_tab:
     high_risk_users = int((filtered_df["Addicted_Score"] >= 7).sum())
     avg_conflicts = filtered_df["Conflicts_Over_Social_Media"].mean()
 
-    metric_1.metric("High-Risk Users", f"{high_risk_users:,}")
-    metric_2.metric("Avg Conflicts", f"{avg_conflicts:.2f}")
+    metric_1.metric("High-Risk Students", f"{high_risk_users:,}")
+    metric_2.metric("Average Conflicts", f"{avg_conflicts:.2f}")
     metric_3.metric("Countries", f"{filtered_df['Country'].nunique():,}")
     metric_4.metric("Platforms", f"{filtered_df['Most_Used_Platform'].nunique():,}")
 
@@ -1291,12 +1293,12 @@ with overview_tab:
 
     with overview_col_2:
         platform_share = filtered_df["Most_Used_Platform"].value_counts().reset_index()
-        platform_share.columns = ["Platform", "Users"]
+        platform_share.columns = ["Platform", "Students"]
         platform_share["Platform Display"] = platform_share["Platform"].apply(platform_axis_label)
         fig = px.pie(
             platform_share,
             names="Platform Display",
-            values="Users",
+            values="Students",
             hole=0.48,
             title="Platform Share",
             color_discrete_sequence=px.colors.qualitative.Set2,
@@ -1304,11 +1306,12 @@ with overview_tab:
         fig.update_traces(
             textposition="inside",
             textinfo="percent+label",
-            hovertemplate="<b>%{label}</b><br>Users: %{value}<br>Share: %{percent}<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>Students: %{value}<br>Share: %{percent}<extra></extra>",
         )
         st.plotly_chart(style_chart(fig, height=390), width="stretch")
+        st.caption("This chart shows the share of students by their most used social media platform.")
 
-    with st.expander("🧾 Quick Dataset Preview", expanded=False):
+    with st.expander("Quick Dataset Preview", expanded=False):
         st.dataframe(filtered_df.head(20), width="stretch")
 
 
@@ -1316,27 +1319,28 @@ with overview_tab:
 # ANALYTICS
 # ============================================================
 with analytics_tab:
-    st.markdown('<div class="section-title">Interactive Plotly Analytics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Student Usage Analysis</div>', unsafe_allow_html=True)
     render_platform_strip(sorted(filtered_df["Most_Used_Platform"].dropna().unique()))
 
     row1_col1, row1_col2 = st.columns(2)
 
     with row1_col1:
         platform_counts = filtered_df["Most_Used_Platform"].value_counts().reset_index()
-        platform_counts.columns = ["Platform", "Users"]
+        platform_counts.columns = ["Platform", "Students"]
         platform_counts["Platform Display"] = platform_counts["Platform"].apply(platform_axis_label)
         fig = px.bar(
             platform_counts,
             x="Platform Display",
-            y="Users",
+            y="Students",
             color="Platform Display",
-            text="Users",
-            title="Platform Usage Analysis",
+            text="Students",
+            title="Most Used Platforms",
             color_discrete_sequence=px.colors.qualitative.Bold,
         )
         fig.update_traces(textposition="outside")
         fig.update_layout(showlegend=False, xaxis_title="Platform")
         st.plotly_chart(style_chart(fig), width="stretch")
+        st.caption("This bar chart compares how many students selected each platform as their most used platform.")
 
     with row1_col2:
         fig = px.histogram(
@@ -1346,8 +1350,9 @@ with analytics_tab:
             title="Addiction Score Distribution",
             color_discrete_sequence=["#38bdf8"],
         )
-        fig.update_layout(xaxis_title="Addiction Score", yaxis_title="Users")
+        fig.update_layout(xaxis_title="Addiction Score", yaxis_title="Students")
         st.plotly_chart(style_chart(fig), width="stretch")
+        st.caption("This chart shows how addiction scores are distributed among the filtered students.")
 
     row2_col1, row2_col2 = st.columns(2)
 
@@ -1367,6 +1372,7 @@ with analytics_tab:
             yaxis_title="Sleep Hours Per Night",
         )
         st.plotly_chart(style_chart(fig), width="stretch")
+        st.caption("This scatter plot compares daily usage hours with sleep hours for each student.")
 
     with row2_col2:
         fig = px.scatter(
@@ -1376,13 +1382,14 @@ with analytics_tab:
             color="Most_Used_Platform",
             size="Avg_Daily_Usage_Hours",
             hover_data=["Age", "Gender", "Sleep_Hours_Per_Night"],
-            title="Mental Health Analysis",
+            title="Mental Health and Addiction Score",
         )
         fig.update_layout(
             xaxis_title="Mental Health Score",
             yaxis_title="Addiction Score",
         )
         st.plotly_chart(style_chart(fig), width="stretch")
+        st.caption("This chart shows the relationship between mental health score and addiction score.")
 
     row3_col1, row3_col2 = st.columns(2)
 
@@ -1392,7 +1399,7 @@ with analytics_tab:
             .agg(
                 Average_Addiction=("Addicted_Score", "mean"),
                 Average_Usage=("Avg_Daily_Usage_Hours", "mean"),
-                Users=("Gender", "count"),
+                Students=("Gender", "count"),
             )
             .sort_values("Average_Addiction", ascending=False)
         )
@@ -1401,12 +1408,13 @@ with analytics_tab:
             x="Gender",
             y=["Average_Addiction", "Average_Usage"],
             barmode="group",
-            hover_data=["Users"],
-            title="Gender Comparison",
+            hover_data=["Students"],
+            title="Gender-wise Average Comparison",
             color_discrete_sequence=["#38bdf8", "#2dd4bf"],
         )
         fig.update_layout(yaxis_title="Average Value", legend_title="Metric")
         st.plotly_chart(style_chart(fig), width="stretch")
+        st.caption("This grouped bar chart compares average addiction score and average usage by gender.")
 
     with row3_col2:
         age_trend = (
@@ -1422,13 +1430,14 @@ with analytics_tab:
             x="Age",
             y=["Average_Addiction", "Average_Usage"],
             markers=True,
-            title="Trend Chart by Age",
+            title="Age-wise Trend",
             color_discrete_sequence=["#f472b6", "#38bdf8"],
         )
         fig.update_layout(yaxis_title="Average Value", legend_title="Metric")
         st.plotly_chart(style_chart(fig), width="stretch")
+        st.caption("This line chart shows how average usage and addiction score change across age groups.")
 
-    with st.expander("🔥 Correlation Matrix", expanded=True):
+    with st.expander("Correlation Matrix", expanded=True):
         numeric_df = filtered_df.select_dtypes(include=["number"])
         correlation = numeric_df.corr(numeric_only=True).round(2)
         fig = go.Figure(
@@ -1446,19 +1455,20 @@ with analytics_tab:
         )
         fig.update_layout(title="Heatmap Correlation Matrix")
         st.plotly_chart(style_chart(fig, height=560), width="stretch")
+        st.caption("The heatmap shows the strength and direction of relationships between numerical columns.")
 
 
 # ============================================================
-# AI PREDICTION
+# PREDICTION
 # ============================================================
 with prediction_tab:
-    st.markdown('<div class="section-title">AI Prediction System</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Addiction Score Prediction</div>', unsafe_allow_html=True)
 
-    with st.expander("🤖 Model Details", expanded=True):
+    with st.expander("Model Details", expanded=True):
         st.write(
-            "The RandomForestClassifier predicts `Addicted_Score` from age, daily usage, "
+            "The Random Forest model estimates `Addicted_Score` using age, daily usage, "
             "sleep hours, mental health score, and most used platform. The risk percentage "
-            "uses the model probability distribution across score classes."
+            "is calculated from the model's probability scores."
         )
 
     pred_col1, pred_col2 = st.columns([1.05, 1])
@@ -1471,7 +1481,7 @@ with prediction_tab:
                 <div class="prediction-panel">
                     <div class="kpi-label">Prediction Result</div>
                     <div class="prediction-score">
-                        Score {result["score"]} · {result["risk_label"]} Risk
+                        Score {result["score"]} - {result["risk_label"]} Risk
                     </div>
                     <div class="prediction-meta">
                         Addiction risk percentage:
@@ -1485,10 +1495,10 @@ with prediction_tab:
                 unsafe_allow_html=True,
             )
         else:
-            st.info("Enter values in the sidebar and click Predict Addiction Risk.")
+            st.info("Enter values in the sidebar and click Predict Addiction Score.")
 
         metric_a, metric_b = st.columns(2)
-        metric_a.metric("Model Accuracy", f"{model_accuracy * 100:.2f}%")
+        metric_a.metric("Test Accuracy", f"{model_accuracy * 100:.2f}%")
         exact_predictions = (
             prediction_summary["Actual Score"] == prediction_summary["Predicted Score"]
         ).sum()
@@ -1498,20 +1508,18 @@ with prediction_tab:
             st.dataframe(prediction_input, width="stretch")
 
     with pred_col2:
-        risk_value = (
+        risk_value = float(
             st.session_state["prediction_result"]["risk_percentage"]
             if "prediction_result" in st.session_state
             else 0
         )
+        st.markdown("#### Addiction Risk Gauge")
         fig = go.Figure(
             go.Indicator(
                 mode="gauge+number",
                 value=risk_value,
                 number={"suffix": "%", "font": {"size": 46, "color": title_color}},
-                title={
-                    "text": "Addiction Risk Gauge",
-                    "font": {"size": 20, "color": soft_text},
-                },
+                title={"text": " "},
                 gauge={
                     "axis": {"range": [0, 100], "tickcolor": soft_text},
                     "bar": {"color": "#38bdf8"},
@@ -1532,6 +1540,7 @@ with prediction_tab:
             )
         )
         st.plotly_chart(style_chart(fig, height=420), width="stretch")
+        st.caption("The gauge converts the predicted score probabilities into an estimated risk percentage.")
 
     st.markdown('<div class="section-title">Model Feature Importance</div>', unsafe_allow_html=True)
     fig = px.bar(
@@ -1539,22 +1548,23 @@ with prediction_tab:
         x="Importance",
         y="Feature",
         orientation="h",
-        title="Random Forest Feature Importance",
+        title="Feature Importance in Random Forest Model",
         color="Importance",
         color_continuous_scale="Teal",
     )
     fig.update_layout(yaxis=dict(autorange="reversed"))
     st.plotly_chart(style_chart(fig, height=440), width="stretch")
+    st.caption("This chart shows which input features contributed most to the prediction model.")
 
     with st.expander("Prediction Sample", expanded=False):
         st.dataframe(prediction_summary.head(25), width="stretch")
 
 
 # ============================================================
-# AI INSIGHTS
+# OBSERVATIONS
 # ============================================================
 with insights_tab:
-    st.markdown('<div class="section-title">AI-Generated Smart Insights</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Key Observations</div>', unsafe_allow_html=True)
 
     for title, body in build_insights(filtered_df):
         render_insight(title, body)
@@ -1562,7 +1572,7 @@ with insights_tab:
     platform_profile = (
         filtered_df.groupby("Most_Used_Platform", as_index=False)
         .agg(
-            Users=("Most_Used_Platform", "count"),
+            Students=("Most_Used_Platform", "count"),
             Average_Addiction=("Addicted_Score", "mean"),
             Average_Usage=("Avg_Daily_Usage_Hours", "mean"),
             Average_Sleep=("Sleep_Hours_Per_Night", "mean"),
@@ -1572,7 +1582,7 @@ with insights_tab:
         .round(2)
     )
 
-    with st.expander("📱 Platform Risk Profile", expanded=True):
+    with st.expander("Platform-wise Summary", expanded=True):
         st.dataframe(platform_profile, width="stretch")
 
 
@@ -1580,11 +1590,11 @@ with insights_tab:
 # DATASET
 # ============================================================
 with dataset_tab:
-    st.markdown('<div class="section-title">Dataset Workspace</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Dataset View</div>', unsafe_allow_html=True)
 
     csv_data = filtered_df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="⬇️ Download Filtered Dataset CSV",
+        label="Download Filtered Dataset CSV",
         data=csv_data,
         file_name="filtered_social_media_addiction_data.csv",
         mime="text/csv",
